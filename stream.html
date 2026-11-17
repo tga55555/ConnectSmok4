@@ -453,10 +453,10 @@ try{
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyBYZcY8pCrLcuk1D6xHF--IQXEOHcmEnq8",authDomain:"connectsmok4.firebaseapp.com",databaseURL:"https://connectsmok4-default-rtdb.firebaseio.com",projectId:"connectsmok4",storageBucket:"connectsmok4.firebasestorage.app",messagingSenderId:"558296183849",appId:"1:558296183849:web:eb8e3a1dd6a2eba5221838"};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
-let stopGameListener=null,stopConnectionListener=null,streamUserReady=false;
+let stopGameListener=null,stopConnectionListener=null,streamUserReady=false,pollTimer=null,pollBusy=false,lastSeenSavedAt=0;
 const cloudStatus=document.getElementById("operatorConnection");
 const loginForm=document.getElementById("streamCloudLogin");
 const loginEmail=document.getElementById("streamLoginEmail");
@@ -481,6 +481,7 @@ function setCloudStatus(kind,message){
 function stopStreamListeners(){
  if(stopGameListener){stopGameListener();stopGameListener=null;}
  if(stopConnectionListener){stopConnectionListener();stopConnectionListener=null;}
+ if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
 }
 function startStreamListener(){
  if(stopGameListener||!streamUserReady)return;
@@ -488,6 +489,7 @@ function startStreamListener(){
  stopGameListener=onValue(ref(db,"game"),snapshot=>{
   const data=snapshot.val();
   if(data&&Array.isArray(data.grid)){
+   lastSeenSavedAt=Number(data.savedAt)||lastSeenSavedAt;
    window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));
    const pieces=data.grid.flat().filter(v=>Number(v)===1||Number(v)===2).length;const stamp=data.savedAt?new Date(data.savedAt).toLocaleTimeString():"snapshot received";setCloudStatus("online","🟢 LIVE · "+stamp+" · "+pieces+" PIECES");
   }else setCloudStatus("online","🟡 CLOUD CONNECTED · WAITING FOR HOST GAME");
@@ -499,6 +501,24 @@ function startStreamListener(){
  stopConnectionListener=onValue(ref(db,".info/connected"),snapshot=>{
   if(snapshot.val()===false)setCloudStatus("offline","⚠️ STREAM RECONNECTING TO CLOUD");
  });
+ // Fallback for mobile browsers where the realtime socket can stall while the
+ // page remains open. Check the saved game periodically and apply only new saves.
+ if(!pollTimer)pollTimer=setInterval(async()=>{
+  if(!streamUserReady||pollBusy||document.visibilityState==="hidden")return;
+  pollBusy=true;
+  try{
+   const snapshot=await get(ref(db,"game"));
+   const data=snapshot.val();
+   if(data&&Array.isArray(data.grid)&&Number(data.savedAt)!==lastSeenSavedAt){
+    lastSeenSavedAt=Number(data.savedAt)||lastSeenSavedAt;
+    window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));
+    const pieces=data.grid.flat().filter(v=>Number(v)===1||Number(v)===2).length;
+    const stamp=data.savedAt?new Date(data.savedAt).toLocaleTimeString():"snapshot received";
+    setCloudStatus("online","🟢 LIVE · "+stamp+" · "+pieces+" PIECES");
+   }
+  }catch(error){console.warn("ConnectSmok4 Stream fallback check:",error);}
+  finally{pollBusy=false;}
+ },1500);
 }
 setPersistence(auth,browserLocalPersistence).catch(error=>console.warn("Stream auth persistence:",error));
 // Wait for Firebase Auth to finish restoring the saved session. Starting the
