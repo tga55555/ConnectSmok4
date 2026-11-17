@@ -413,6 +413,33 @@ function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice
   })));
  }
 }
+
+window.addEventListener('connectsmok4-firebase-state',e=>accept(e.detail));
+read();
+if(state?.lastPiece)lastDropSignature=[state.savedAt||'',state.lastPiece.r,state.lastPiece.c,state.lastPiece.p].join(':');
+lastBattleCount=Number(state?.battleCount)||0;
+render();
+try{
+ if('BroadcastChannel'in window){
+  const ch=new BroadcastChannel('battle-connect4-sync');
+  ch.onmessage=e=>accept(e.data);
+ }
+}catch(e){}
+window.addEventListener('storage',e=>{
+ if(e.key===key&&e.newValue){try{accept(JSON.parse(e.newValue))}catch(err){}}
+});
+let lastPolledSave='';
+setInterval(()=>{
+ try{
+  const raw=localStorage.getItem(key);
+  if(raw&&raw!==lastPolledSave){
+   lastPolledSave=raw;
+   const d=JSON.parse(raw);
+   if(d&&Array.isArray(d.grid)&&d.grid.length===6)accept(d);
+  }
+ }catch(e){}
+},500);
+
 })();
 </script>
 <script type="module">
