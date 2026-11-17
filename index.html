@@ -904,7 +904,7 @@ function play(c){
  if(line){winner=current;winningCells=line;scores[current-1]++;roundStarter=current;setTimeout(()=>celebrate(current),4400)}
  else if(grid.every(row=>row.every(Boolean)))winner=3;
  
- render();
+ saveGame();render();
 }
 function selectBattleWinner(p){if(paused||winner||!battleReady||battleWinnerSelected||!countdownReady)return;pendingSnapshot={streakPlayer,streakCount,bestStreak,battleCount,battleLogLength:battleLog.length,roundBattleCount,roundDrops:[...roundDrops]};current=p;battleWinnerSelected=true;countdownReady=false;battleCount++;roundBattleCount++;battleLog.push({number:battleCount,player:p,column:null});if(streakPlayer===p)streakCount++;else{streakPlayer=p;streakCount=1}bestStreak=Math.max(bestStreak,streakCount);announceBattle(p,streakCount);render()}
 function startRound(){if(paused)return;if(countdownTimer)clearInterval(countdownTimer);countdownActive=false;countdownNumber=0;countdownReady=false;$('countdownOverlay').classList.remove('show');$('victoryOverlay').className='victory-overlay';grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));history=[];roundBattleCount=0;roundDrops=[0,0];dropRequests=[0,0];winner=0;winningCells=[];current=roundStarter;battleReady=true;battleWinnerSelected=false;pendingSnapshot=null;render()}
@@ -1126,3 +1126,5 @@ onAuthStateChanged(auth,user=>{signedIn=!!user;if(form){email.hidden=signedIn;pa
 })();
 </script>
 </body></html>
+
+<style>/* No hover/selected column glow: only winning pieces may be highlighted. */#board[data-preview] .cell{box-shadow:inset 0 5px 10px #000b,0 1px 0 #ffffff22!important;filter:none!important}</style>
