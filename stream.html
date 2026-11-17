@@ -647,7 +647,21 @@ body{
   }
   previous=data.grid.map(row=>row.slice());
   if(drop){
-   requestAnimationFrame(()=>{const cell=board.children[drop.r*7+drop.c];if(!cell)return;const b=cell.getBoundingClientRect(),plume=document.createElement('div');plume.className='drop-smoke-plume';plume.style.left=(b.left+b.width/2)+'px';plume.style.top=(b.top+b.height/2)+'px';plume.style.setProperty('--plume-tint',drop.p===1?'rgba(255,65,107,.8)':'rgba(70,157,255,.8)');plume.style.setProperty('--plume-scale',String(Math.sqrt(intensity)));plume.style.setProperty('--plume-duration',(1.5+1.35*(1+(streak-1)*.12))+'s');document.documentElement.append(plume);setTimeout(()=>plume.remove(),Math.ceil((1.5+1.35*(1+(streak-1)*.12))*1000)+150);});
+   const streak=Math.max(1,Math.min(4,data.streakPlayer===drop.p?Number(data.streakCount)||1:1));
+   const intensity=1+(streak-1)*.5;
+   requestAnimationFrame(()=>{
+    const cell=board.children[drop.r*7+drop.c];if(!cell)return;
+    const rect=cell.getBoundingClientRect(),plume=document.createElement('div');
+    plume.className='drop-smoke-plume';
+    plume.style.left=(rect.left+rect.width/2)+'px';
+    plume.style.top=(rect.top+rect.height/2)+'px';
+    plume.style.setProperty('--plume-tint',drop.p===1?'rgba(255,65,107,.8)':'rgba(70,157,255,.8)');
+    plume.style.setProperty('--plume-scale',String(Math.sqrt(intensity)));
+    const duration=1.5+1.35*(1+(streak-1)*.12);
+    plume.style.setProperty('--plume-duration',duration+'s');
+    document.documentElement.append(plume);
+    setTimeout(()=>plume.remove(),Math.ceil(duration*1000)+150);
+   });
   }
  }
  window.addEventListener('connectsmok4-firebase-state',e=>paint(e.detail));
