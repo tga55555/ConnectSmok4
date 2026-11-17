@@ -371,18 +371,77 @@ const countdown=$('streamCountdown');if(state.countdownActive&&!state.paused&&!w
 const board=$('board');board.innerHTML='';const wins=Array.isArray(state.winningCells)?state.winningCells:[];for(let r=0;r<6;r++)for(let c=0;c<7;c++){const cell=document.createElement('div');cell.className='cell';if(g[r][c]){const piece=document.createElement('div');piece.className='piece '+(g[r][c]===1?'red':'yellow')+(wins.some(x=>x[0]===r&&x[1]===c)?' winning':'');cell.append(piece)}board.append(cell)}
 const req=Array.isArray(state.dropRequests)?state.dropRequests:[0,0],guides=$('columnGuides');guides.innerHTML='';for(let c=1;c<=7;c++){const label=document.createElement('div');label.className='column-guide'+(req.includes(c)?' requested':'');label.textContent=c;guides.append(label)}const sources=Array.isArray(state.requestSources)?state.requestSources:['',''];$('redRequestDisplay').textContent=req[0]?'COLUMN '+req[0]+' · '+(sources[0]||'verified opponent'):'No verified request';$('blueRequestDisplay').textContent=req[1]?'COLUMN '+req[1]+' · '+(sources[1]||'verified opponent'):'No verified request';const list=$('history');list.innerHTML='';const log=Array.isArray(state.battleLog)?state.battleLog.slice(-6).reverse():[];if(!log.length){const li=document.createElement('li');li.className='empty';li.textContent='Battle results appear here';list.append(li)}else log.forEach(e=>{const li=document.createElement('li'),n=document.createElement('span'),w=document.createElement('span'),col=document.createElement('span');n.className='num';n.textContent='BATTLE '+e.number;w.className='winner '+(e.player===1?'red-text':'yellow-text');w.textContent=team(e.player)+' WON';col.className='column';col.textContent=e.column?'Column '+e.column:'Drop pending';li.append(n,w,col);list.append(li)});
 $('victory').classList.toggle('show',(win===1||win===2||win===3)&&Date.now()>=victoryDelayUntil);$('victoryName').textContent=win===3?'DRAW':team(win)+' WINS!';const recapWins=[battleRows.filter(e=>e.player===1).length,battleRows.filter(e=>e.player===2).length],stats=[[(state.battleCount||0),'Total battles'],[recapWins[0]+' – '+recapWins[1],'Battle wins · R–Y'],[(state.scores?.[0]||0)+' – '+(state.scores?.[1]||0),'Match score · R–Y'],[(state.roundDrops?.[0]||0)+' – '+(state.roundDrops?.[1]||0),'Final round drops'],[(state.bestStreak||0),'Longest battle streak']];const recap=$('streamVictoryStats');recap.innerHTML='';stats.forEach(([value,label])=>{const card=document.createElement('div'),v=document.createElement('b'),l=document.createElement('span');card.className='stream-victory-stat';v.textContent=value;l.textContent=label;card.append(v,l);recap.append(card)})}
-function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice(-8):[];if(!rows.length)return 'Waiting for the first battle…';return rows.map(e=>'BATTLE '+e.number+': '+teamFrom(d,e.player)+' WON'+(e.column?' · DROP COLUMN '+e.column:' · ONE DROP EARNED')).join('     ✦     ')}function teamFrom(d,p){return String(d['name'+p]||(p===1?'RED TEAM':'BLUE TEAM')).trim()}function showBattlePop(d){const p=d.current===2?2:1,el=$('battlePop');el.className='battle-pop show '+(p===1?'red':'blue');$('battlePopEyebrow').textContent='BATTLE '+(d.battleCount||lastBattleCount)+' RESULT';$('battlePopTitle').textContent=teamFrom(d,p)+' WINS!';$('battlePopSub').textContent=(d.streakCount>=4?'🔥 UNSTOPPABLE!':d.streakCount===3?'🔥 ON FIRE!':d.streakCount===2?'🔥 '+d.streakCount+' BATTLES IN A ROW':'ONE DROP EARNED')+' · NEXT DROP IS READY';if(popTimer)clearTimeout(popTimer);popTimer=setTimeout(()=>{el.className='battle-pop'},2750)}function showDropPop(d){const row=(Array.isArray(d.battleLog)?d.battleLog:[]).slice(-1)[0];const el=$('dropPop');el.textContent='🔵🔴 '+teamFrom(d,d.current===2?2:1)+' DROPPED IN COLUMN '+(row&&row.column?row.column:'—')+' · NEXT BATTLE REQUIRED';el.className='drop-pop show';if(dropTimer)clearTimeout(dropTimer);dropTimer=setTimeout(()=>{el.className='drop-pop'},2550)}function accept(d){if(d&&Array.isArray(d.grid)&&d.grid.length===6){const previousWin=Number(state?.winner)||0,incomingWin=Number(d.winner)||0;if(incomingWin&&!previousWin){victoryDelayUntil=Date.now()+4400;if(victoryRevealTimer)clearTimeout(victoryRevealTimer);victoryRevealTimer=setTimeout(()=>{victoryDelayUntil=0;render()},4400)}let dropped=null;if(state&&Array.isArray(state.grid)){for(let r=0;r<6;r++){for(let c=0;c<7;c++){if(!state.grid[r]?.[c]&&d.grid[r]?.[c])dropped={r,c,p:d.grid[r][c]};}}}const nextCount=Number(d.battleCount)||0;if(state&&nextCount>lastBattleCount){if((d.streakCount||0)>=2&&d.streakPlayer)streakToast(d.streakPlayer,d.streakCount);showBattlePop(d)}if(state&&state.battleLog&&d.battleLog){const prev=(state.battleLog.slice(-1)[0]||{}),cur=(d.battleLog.slice(-1)[0]||{});if(prev.column==null&&cur.column!=null)showDropPop(d)}lastBattleCount=nextCount;state=d;render();if(dropped){const streak=d.streakPlayer===dropped.p?Math.max(1,Number(d.streakCount)||1):1;requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent("connectsmok4-piece-dropped",{detail:{r:Number(dropped.r),c:Number(dropped.c),p:Number(dropped.p),streak}})))}}}
-window.addEventListener('connectsmok4-firebase-state',e=>accept(e.detail));read();lastBattleCount=Number(state?.battleCount)||0;render();try{if('BroadcastChannel'in window){const ch=new BroadcastChannel('battle-connect4-sync');ch.onmessage=e=>accept(e.data)}}catch(e){}
-window.addEventListener('storage',e=>{if(e.key===key&&e.newValue){try{accept(JSON.parse(e.newValue))}catch(err){}}});
-let lastPolledSave='';setInterval(()=>{try{const raw=localStorage.getItem(key);if(raw&&raw!==lastPolledSave){lastPolledSave=raw;const d=JSON.parse(raw);if(d&&Array.isArray(d.grid)&&d.grid.length===6)accept(d)}}catch(e){}},500);
+function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice(-8):[];if(!rows.length)return 'Waiting for the first battle…';return rows.map(e=>'BATTLE '+e.number+': '+teamFrom(d,e.player)+' WON'+(e.column?' · DROP COLUMN '+e.column:' · ONE DROP EARNED')).join('     ✦     ')}function teamFrom(d,p){return String(d['name'+p]||(p===1?'RED TEAM':'BLUE TEAM')).trim()}function showBattlePop(d){const p=d.current===2?2:1,el=$('battlePop');el.className='battle-pop show '+(p===1?'red':'blue');$('battlePopEyebrow').textContent='BATTLE '+(d.battleCount||lastBattleCount)+' RESULT';$('battlePopTitle').textContent=teamFrom(d,p)+' WINS!';$('battlePopSub').textContent=(d.streakCount>=4?'🔥 UNSTOPPABLE!':d.streakCount===3?'🔥 ON FIRE!':d.streakCount===2?'🔥 '+d.streakCount+' BATTLES IN A ROW':'ONE DROP EARNED')+' · NEXT DROP IS READY';if(popTimer)clearTimeout(popTimer);popTimer=setTimeout(()=>{el.className='battle-pop'},2750)}function showDropPop(d){const row=(Array.isArray(d.battleLog)?d.battleLog:[]).slice(-1)[0];const el=$('dropPop');el.textContent='🔵🔴 '+teamFrom(d,d.current===2?2:1)+' DROPPED IN COLUMN '+(row&&row.column?row.column:'—')+' · NEXT BATTLE REQUIRED';el.className='drop-pop show';if(dropTimer)clearTimeout(dropTimer);dropTimer=setTimeout(()=>{el.className='drop-pop'},2550)}function accept(d){
+ if(!d||!Array.isArray(d.grid)||d.grid.length!==6)return;
+ const previousWin=Number(state?.winner)||0,incomingWin=Number(d.winner)||0;
+ if(incomingWin&&!previousWin){
+  victoryDelayUntil=Date.now()+4400;
+  if(victoryRevealTimer)clearTimeout(victoryRevealTimer);
+  victoryRevealTimer=setTimeout(()=>{victoryDelayUntil=0;render()},4400);
+ }
+ let dropped=null;
+ if(state&&Array.isArray(state.grid)){
+  for(let r=0;r<6;r++)for(let c=0;c<7;c++){
+   if(!state.grid[r]?.[c]&&d.grid[r]?.[c])dropped={r,c,p:d.grid[r][c]};
+  }
+ }
+ // Firebase snapshots can arrive after the board has already been locally restored.
+ // Use the host's saved lastPiece as a fallback so the Stream smoke still fires.
+ const lp=d.lastPiece;
+ const signature=lp&&Number.isInteger(Number(lp.r))&&Number.isInteger(Number(lp.c))
+  ?[d.savedAt||"",lp.r,lp.c,lp.p].join(":"):"";
+ if(!dropped&&lp&&signature&&signature!==lastDropSignature&&Number(d.grid[lp.r]?.[lp.c])===Number(lp.p)){
+  dropped={r:Number(lp.r),c:Number(lp.c),p:Number(lp.p)};
+ }
+ const nextCount=Number(d.battleCount)||0;
+ if(state&&nextCount>lastBattleCount){
+  if((d.streakCount||0)>=2&&d.streakPlayer)streakToast(d.streakPlayer,d.streakCount);
+  showBattlePop(d);
+ }
+ if(state&&state.battleLog&&d.battleLog){
+  const prev=(state.battleLog.slice(-1)[0]||{}),cur=(d.battleLog.slice(-1)[0]||{});
+  if(prev.column==null&&cur.column!=null)showDropPop(d);
+ }
+ lastBattleCount=nextCount;
+ state=d;
+ render();
+ if(dropped){
+  lastDropSignature=signature||[d.savedAt||Date.now(),dropped.r,dropped.c,dropped.p].join(":");
+  const streak=d.streakPlayer===dropped.p?Math.max(1,Number(d.streakCount)||1):1;
+  requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent("connectsmok4-piece-dropped",{
+   detail:{r:Number(dropped.r),c:Number(dropped.c),p:Number(dropped.p),streak}
+  })));
+ }
+}
 })();
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyBYZcY8pCrLcuk1D6xHF--IQXEOHcmEnq8",authDomain:"connectsmok4.firebaseapp.com",databaseURL:"https://connectsmok4-default-rtdb.firebaseio.com",projectId:"connectsmok4",storageBucket:"connectsmok4.firebasestorage.app",messagingSenderId:"558296183849",appId:"1:558296183849:web:eb8e3a1dd6a2eba5221838"};
-const app=initializeApp(firebaseConfig),db=getDatabase(app);
-onValue(ref(db,"game"),snapshot=>{const data=snapshot.val();if(data&&Array.isArray(data.grid))window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}))},error=>console.error("ConnectSmok4 cloud sync error:",error));
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
+let stopGameListener=null;
+function startStreamListener(){
+ if(stopGameListener)return;
+ stopGameListener=onValue(ref(db,"game"),snapshot=>{
+  const data=snapshot.val();
+  if(data&&Array.isArray(data.grid))window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));
+ },error=>{
+  console.error("ConnectSmok4 Stream cloud sync error:",error);
+  const el=document.getElementById("operatorConnection");
+  if(el){el.className="connection-pill offline";el.textContent="⚠️ STREAM CLOUD ACCESS ERROR";}
+  stopGameListener=null;
+ });
+}
+setPersistence(auth,browserLocalPersistence).catch(error=>console.warn("Stream auth persistence:",error));
+onAuthStateChanged(auth,user=>{
+ if(user){startStreamListener();console.info("ConnectSmok4 Stream authenticated and listening for live game updates.");}
+ else{
+  const el=document.getElementById("operatorConnection");
+  if(el){el.className="connection-pill offline";el.textContent="🔐 SIGN IN TO HOST FIRST";}
+ }
+});
 </script><script>
 (()=> {
  const canvas=document.getElementById('smokeCanvas');
