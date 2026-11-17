@@ -952,7 +952,7 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app),ga
 const form=document.getElementById("connectSmok4Login"),email=document.getElementById("connectSmok4Email"),password=document.getElementById("connectSmok4Password"),status=document.getElementById("connectSmok4AuthStatus"),signIn=document.getElementById("connectSmok4SignIn"),signOutButton=document.getElementById("connectSmok4SignOut");
 let signedIn=false,cloudReady=false,pendingCloudData=null;
 function say(message){if(status)status.textContent=message}
-function flushPendingCloud(){if(!signedIn||!cloudReady||!pendingCloudData)return;const payload=pendingCloudData;pendingCloudData=null;set(gameRef,payload).catch(error=>{pendingCloudData=payload;say("Cloud save failed: "+error.message)})}
+function flushPendingCloud(){if(!signedIn||!cloudReady||!pendingCloudData)return;const payload=pendingCloudData;pendingCloudData=null;set(gameRef,payload).then(()=>say("☁️ CLOUD SAVE CONFIRMED · "+new Date(payload.savedAt||Date.now()).toLocaleTimeString())).catch(error=>{pendingCloudData=payload;say("⚠️ CLOUD WRITE FAILED: "+error.message)})}
 setPersistence(auth,browserLocalPersistence).catch(error=>say("Could not enable sign-in persistence: "+error.message));
 onValue(gameRef,snapshot=>{cloudReady=true;const data=snapshot.val();if(data&&Array.isArray(data.grid)){window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));say(signedIn?"☁️ Host signed in · Live cloud sync connected":"☁️ Cloud connected · Sign in to control it.")}flushPendingCloud()},error=>say("Cloud read error: "+error.message));
 window.addEventListener("connectsmok4-local-state",event=>{pendingCloudData=event.detail;flushPendingCloud()});
