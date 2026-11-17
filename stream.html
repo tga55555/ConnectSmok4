@@ -373,6 +373,7 @@ const req=Array.isArray(state.dropRequests)?state.dropRequests:[0,0],guides=$('c
 $('victory').classList.toggle('show',(win===1||win===2||win===3)&&Date.now()>=victoryDelayUntil);$('victoryName').textContent=win===3?'DRAW':team(win)+' WINS!';const recapWins=[battleRows.filter(e=>e.player===1).length,battleRows.filter(e=>e.player===2).length],stats=[[(state.battleCount||0),'Total battles'],[recapWins[0]+' – '+recapWins[1],'Battle wins · R–Y'],[(state.scores?.[0]||0)+' – '+(state.scores?.[1]||0),'Match score · R–Y'],[(state.roundDrops?.[0]||0)+' – '+(state.roundDrops?.[1]||0),'Final round drops'],[(state.bestStreak||0),'Longest battle streak']];const recap=$('streamVictoryStats');recap.innerHTML='';stats.forEach(([value,label])=>{const card=document.createElement('div'),v=document.createElement('b'),l=document.createElement('span');card.className='stream-victory-stat';v.textContent=value;l.textContent=label;card.append(v,l);recap.append(card)})}
 function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice(-8):[];if(!rows.length)return 'Waiting for the first battle…';return rows.map(e=>'BATTLE '+e.number+': '+teamFrom(d,e.player)+' WON'+(e.column?' · DROP COLUMN '+e.column:' · ONE DROP EARNED')).join('     ✦     ')}function teamFrom(d,p){return String(d['name'+p]||(p===1?'RED TEAM':'BLUE TEAM')).trim()}function showBattlePop(d){const p=d.current===2?2:1,el=$('battlePop');el.className='battle-pop show '+(p===1?'red':'blue');$('battlePopEyebrow').textContent='BATTLE '+(d.battleCount||lastBattleCount)+' RESULT';$('battlePopTitle').textContent=teamFrom(d,p)+' WINS!';$('battlePopSub').textContent=(d.streakCount>=4?'🔥 UNSTOPPABLE!':d.streakCount===3?'🔥 ON FIRE!':d.streakCount===2?'🔥 '+d.streakCount+' BATTLES IN A ROW':'ONE DROP EARNED')+' · NEXT DROP IS READY';if(popTimer)clearTimeout(popTimer);popTimer=setTimeout(()=>{el.className='battle-pop'},2750)}function showDropPop(d){const row=(Array.isArray(d.battleLog)?d.battleLog:[]).slice(-1)[0];const el=$('dropPop');el.textContent='🔵🔴 '+teamFrom(d,d.current===2?2:1)+' DROPPED IN COLUMN '+(row&&row.column?row.column:'—')+' · NEXT BATTLE REQUIRED';el.className='drop-pop show';if(dropTimer)clearTimeout(dropTimer);dropTimer=setTimeout(()=>{el.className='drop-pop'},2550)}function accept(d){
  if(!d||!Array.isArray(d.grid)||d.grid.length!==6)return;
+ if(state&&Number(d.savedAt||0)<Number(state.savedAt||0))return;
  const previousWin=Number(state?.winner)||0,incomingWin=Number(d.winner)||0;
  if(incomingWin&&!previousWin){
   victoryDelayUntil=Date.now()+4400;
@@ -425,20 +426,7 @@ try{
   ch.onmessage=e=>accept(e.data);
  }
 }catch(e){}
-window.addEventListener('storage',e=>{
- if(e.key===key&&e.newValue){try{accept(JSON.parse(e.newValue))}catch(err){}}
-});
-let lastPolledSave='';
-setInterval(()=>{
- try{
-  const raw=localStorage.getItem(key);
-  if(raw&&raw!==lastPolledSave){
-   lastPolledSave=raw;
-   const d=JSON.parse(raw);
-   if(d&&Array.isArray(d.grid)&&d.grid.length===6)accept(d);
-  }
- }catch(e){}
-},500);
+// Firebase and BroadcastChannel are the live sources; do not poll stale local saves.
 
 })();
 </script>
@@ -462,12 +450,12 @@ function startStreamListener(){
  });
 }
 setPersistence(auth,browserLocalPersistence).catch(error=>console.warn("Stream auth persistence:",error));
+// Attach the live database listener immediately. Firebase applies the available
+// signed-in session as soon as Auth restores it; this avoids a missed startup window.
+startStreamListener();
 onAuthStateChanged(auth,user=>{
- if(user){startStreamListener();console.info("ConnectSmok4 Stream authenticated and listening for live game updates.");}
- else{
-  const el=document.getElementById("operatorConnection");
-  if(el){el.className="connection-pill offline";el.textContent="🔐 SIGN IN TO HOST FIRST";}
- }
+ const el=document.getElementById("operatorConnection");
+ if(el&&user){el.className="connection-pill online";el.textContent="🟢 LIVE CLOUD LISTENER CONNECTED";}
 });
 </script><script>
 (()=> {
