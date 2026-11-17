@@ -324,7 +324,14 @@ header.logo-header{
 /* Match PLAYER 1 / PLAYER 2 label text to the host page. */
 #player1 small,#player2 small{color:#c5cde4!important;}
 </style></head>
-<body><div class="shell">
+<body><div class="smoke-fx" aria-hidden="true"></div><div class="shell">
+<form id="streamCloudLogin" class="stream-cloud-login" autocomplete="on">
+ <strong>CONNECT TO LIVE GAME</strong>
+ <input id="streamLoginEmail" type="email" autocomplete="username" placeholder="Host account email" required>
+ <input id="streamLoginPassword" type="password" autocomplete="current-password" placeholder="Host account password" required>
+ <button type="submit" id="streamLoginButton">SIGN IN TO STREAM</button>
+ <span id="streamLoginStatus" role="status">Sign in with the same account used on the Host page.</span>
+</form>
 <header class="logo-header"><img class="site-logo" src="smoke-after-dark-header.jpeg" alt="Smoke After Dark Connect Smoke logo"></header>
 <div class="stream-toolbar" aria-label="Stream display controls"><span class="connection-pill offline" id="operatorConnection">⚠️ OPERATOR NOT CONNECTED</span><button type="button" id="fullscreenBtn">⛶ FULL SCREEN</button><button type="button" id="toggleTicker">HIDE TICKER</button><button type="button" id="toggleHistory">HIDE HISTORY</button><button type="button" id="toggleInfo">HIDE SIDE PANEL</button></div>
 <div class="activity-ticker" aria-live="polite"><span class="ticker-label">LIVE ACTIVITY</span><div class="ticker-window"><div id="activityTicker" class="ticker-track">Waiting for the first battle…</div></div></div>
@@ -445,12 +452,29 @@ try{
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyBYZcY8pCrLcuk1D6xHF--IQXEOHcmEnq8",authDomain:"connectsmok4.firebaseapp.com",databaseURL:"https://connectsmok4-default-rtdb.firebaseio.com",projectId:"connectsmok4",storageBucket:"connectsmok4.firebasestorage.app",messagingSenderId:"558296183849",appId:"1:558296183849:web:eb8e3a1dd6a2eba5221838"};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
 let stopGameListener=null,stopConnectionListener=null,streamUserReady=false;
 const cloudStatus=document.getElementById("operatorConnection");
+const loginForm=document.getElementById("streamCloudLogin");
+const loginEmail=document.getElementById("streamLoginEmail");
+const loginPassword=document.getElementById("streamLoginPassword");
+const loginButton=document.getElementById("streamLoginButton");
+const loginStatus=document.getElementById("streamLoginStatus");
+loginForm?.addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(loginButton)loginButton.disabled=true;
+ if(loginStatus)loginStatus.textContent="Signing in…";
+ try{
+  await signInWithEmailAndPassword(auth,loginEmail.value.trim(),loginPassword.value);
+  loginPassword.value="";
+  if(loginStatus)loginStatus.textContent="Connected. Waiting for live game…";
+ }catch(error){
+  if(loginStatus)loginStatus.textContent="Sign-in failed: "+error.message;
+ }finally{if(loginButton)loginButton.disabled=false;}
+});
 function setCloudStatus(kind,message){
  if(cloudStatus){cloudStatus.dataset.cloudStatus="true";cloudStatus.className="connection-pill "+kind;cloudStatus.textContent=message;}
 }
@@ -482,10 +506,12 @@ setPersistence(auth,browserLocalPersistence).catch(error=>console.warn("Stream a
 // that leaves the Stream disconnected until a manual refresh.
 onAuthStateChanged(auth,user=>{
  streamUserReady=!!user;
- if(user){startStreamListener();}
+ if(loginForm)loginForm.hidden=!!user;
+ if(user){startStreamListener();setCloudStatus("online","🟢 SIGNED IN · CONNECTING TO LIVE GAME");}
  else{
   stopStreamListeners();
-  setCloudStatus("offline","⚠️ STREAM SIGN-IN NOT RESTORED · OPEN HOST AND SIGN IN");
+  if(loginForm)loginForm.hidden=false;
+  setCloudStatus("offline","⚠️ SIGN IN ON THIS DEVICE TO VIEW LIVE MOVES");
  }
 });
 </script>
@@ -545,28 +571,43 @@ onAuthStateChanged(auth,user=>{
 </script>
 
 <style>
-/* MATCH HOST ARTWORK, AND LET THE FLAMES COVER THE ENTIRE STREAM PAGE */
-html{
- min-height:100%!important;
- background:#02030a!important;
-}
+/* HOST-MATCHED FLAME BACKDROP: crop the artwork below its built-in wordmark.
+   The Stream header supplies the single CONNECT SMOKE logo. */
+html,body{min-height:100%!important;background:#02030a!important}
 body{
- position:relative!important;
- isolation:isolate!important;
+ position:relative!important;isolation:isolate!important;
  margin:0!important;min-height:100vh!important;padding:0 0 36px!important;
  display:flex!important;justify-content:center!important;
- background-color:#02030a!important;
- background-image:url('IMG_7443.jpeg')!important;
- background-repeat:no-repeat!important;
- background-position:center top!important;
- background-size:100% 100%!important;
- background-attachment:scroll!important;
+ background:#02030a!important;background-image:none!important;
 }
 .smoke-fx{
- display:none!important;
+ display:block!important;position:fixed!important;inset:0!important;
+ z-index:-1!important;pointer-events:none!important;opacity:1!important;
+ background-image:url('IMG_7443.jpeg')!important;
+ background-repeat:no-repeat!important;
+ background-size:100vw 147vh!important;
+ background-position:center bottom!important;
+ background-color:#02030a!important;
+ mix-blend-mode:normal!important;
 }
-#smokeCanvas{display:none!important;opacity:0!important}
 .shell{position:relative!important;z-index:1!important}
+.stream-cloud-login{
+ width:min(100% - 28px,520px);margin:10px auto 14px;padding:12px;
+ display:flex;flex-direction:column;gap:8px;box-sizing:border-box;
+ border:1px solid #40527d;border-radius:12px;background:rgba(3,7,22,.94);
+ color:#eef3ff;font:600 12px/1.35 system-ui,sans-serif;
+}
+.stream-cloud-login[hidden]{display:none!important}
+.stream-cloud-login input{
+ width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;
+ border:1px solid #53658c;background:#080d20;color:#fff;font:inherit;
+}
+.stream-cloud-login button{
+ padding:11px;border:0;border-radius:8px;background:#2359c7;color:white;
+ font:800 12px system-ui,sans-serif;letter-spacing:.06em;
+}
+.stream-cloud-login button:disabled{opacity:.6}
+.stream-cloud-login span{color:#b8c6e5;font-size:11px}
 </style>
 </body></html>
 <style>/* Stream never previews or highlights a selected column. Winning four only. */.column-guide.requested{background:#172344!important;border:1px solid #6079ad!important;box-shadow:none!important;animation:none!important}#board .cell{outline:none!important;filter:none!important}</style>
