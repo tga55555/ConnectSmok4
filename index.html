@@ -939,14 +939,15 @@ import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebase
 const firebaseConfig={apiKey:"AIzaSyBYZcY8pCrLcuk1D6xHF--IQXEOHcmEnq8",authDomain:"connectsmok4.firebaseapp.com",databaseURL:"https://connectsmok4-default-rtdb.firebaseio.com",projectId:"connectsmok4",storageBucket:"connectsmok4.firebasestorage.app",messagingSenderId:"558296183849",appId:"1:558296183849:web:eb8e3a1dd6a2eba5221838"};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app),gameRef=ref(db,"game");
 const form=document.getElementById("connectSmok4Login"),email=document.getElementById("connectSmok4Email"),password=document.getElementById("connectSmok4Password"),status=document.getElementById("connectSmok4AuthStatus"),signIn=document.getElementById("connectSmok4SignIn"),signOutButton=document.getElementById("connectSmok4SignOut");
-let signedIn=false,cloudReady=false;
+let signedIn=false,cloudReady=false,pendingCloudData=null;
 function say(message){if(status)status.textContent=message}
+function flushPendingCloud(){if(!signedIn||!cloudReady||!pendingCloudData)return;const payload=pendingCloudData;pendingCloudData=null;set(gameRef,payload).catch(error=>{pendingCloudData=payload;say("Cloud save failed: "+error.message)})}
 setPersistence(auth,browserLocalPersistence).catch(error=>say("Could not enable sign-in persistence: "+error.message));
-onValue(gameRef,snapshot=>{cloudReady=true;const data=snapshot.val();if(data&&Array.isArray(data.grid)){window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));say(signedIn?"☁️ Host signed in · Cloud game connected":"☁️ Live cloud game connected · Sign in to control it.")}},error=>say("Cloud read error: "+error.message));
-window.addEventListener("connectsmok4-local-state",event=>{if(!signedIn||!cloudReady)return;set(gameRef,event.detail).catch(error=>say("Cloud save failed: "+error.message))});
+onValue(gameRef,snapshot=>{cloudReady=true;const data=snapshot.val();if(data&&Array.isArray(data.grid)){window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));say(signedIn?"☁️ Host signed in · Live cloud sync connected":"☁️ Cloud connected · Sign in to control it.")}flushPendingCloud()},error=>say("Cloud read error: "+error.message));
+window.addEventListener("connectsmok4-local-state",event=>{pendingCloudData=event.detail;flushPendingCloud()});
 form?.addEventListener("submit",async event=>{event.preventDefault();signIn.disabled=true;say("Signing in…");try{await signInWithEmailAndPassword(auth,email.value.trim(),password.value);password.value=""}catch(error){say("Sign-in failed: "+error.message)}finally{signIn.disabled=false}});
 signOutButton?.addEventListener("click",()=>signOut(auth).catch(error=>say("Sign-out failed: "+error.message)));
-onAuthStateChanged(auth,user=>{signedIn=!!user;if(form){email.hidden=signedIn;password.hidden=signedIn;signIn.hidden=signedIn;signOutButton.hidden=!signedIn}if(user){say("Signed in as "+user.email+" · Cloud saves enabled")}else say("Not signed in · Cloud game is viewable, but host changes will not sync. Sign in to control the game.")});
+onAuthStateChanged(auth,user=>{signedIn=!!user;if(form){email.hidden=signedIn;password.hidden=signedIn;signIn.hidden=signedIn;signOutButton.hidden=!signedIn}if(user){say("Signed in as "+user.email+" · Live cloud sync enabled");flushPendingCloud()}else say("Not signed in · Cloud game is viewable, but host changes will not sync. Sign in to control the game.")});
 </script>
 <script>
 (()=> {
