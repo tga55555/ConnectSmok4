@@ -847,12 +847,23 @@ function celebrate(p){const overlay=$('victoryOverlay');overlay.className='victo
 function saveGame(){if(restoring||applyingCloudState)return;try{const data={version:1,grid,current,lastPiece,winner,winningCells,scores,history,roundStarter,battleReady,battleWinnerSelected,dropRequests,opponentHandles,requestSources,battleCount,streakPlayer,streakCount,bestStreak,battleLog,roundBattleCount,roundDrops,effectsEnabled,musicEnabled,countdownReady,countdownActive,countdownNumber,pendingSnapshot,paused,savedAt:Date.now(),name1:$('name1').value,name2:$('name2').value};localStorage.setItem('battleConnect4Save',JSON.stringify(data));storageHealthy=true;lastSavedAt=data.savedAt;if(syncChannel)syncChannel.postMessage(data);window.dispatchEvent(new CustomEvent('connectsmok4-local-state',{detail:data}))}catch(e){storageHealthy=false;console.warn('Could not save game state',e)}}
 function loadSavedGame(){try{const raw=localStorage.getItem('battleConnect4Save');if(!raw)return;const d=JSON.parse(raw);if(!d||d.version!==1||!Array.isArray(d.grid)||d.grid.length!==ROWS||!d.grid.every(row=>Array.isArray(row)&&row.length===COLS))return;restoring=true;grid=d.grid;current=d.current===2?2:1;lastPiece=d.lastPiece&&Number.isInteger(d.lastPiece.r)&&Number.isInteger(d.lastPiece.c)&&[1,2].includes(d.lastPiece.p)?d.lastPiece:null;winner=[0,1,2,3].includes(d.winner)?d.winner:0;winningCells=Array.isArray(d.winningCells)?d.winningCells:[];scores=Array.isArray(d.scores)&&d.scores.length===2?d.scores:[0,0];history=Array.isArray(d.history)?d.history:[];roundStarter=d.roundStarter===2?2:1;battleReady=!!d.battleReady;battleWinnerSelected=!!d.battleWinnerSelected;dropRequests=Array.isArray(d.dropRequests)&&d.dropRequests.length===2?d.dropRequests.map(v=>Number(v)>=1&&Number(v)<=7?Number(v):0):[0,0];opponentHandles=Array.isArray(d.opponentHandles)&&d.opponentHandles.length===2?d.opponentHandles.map(v=>String(v||'')):['',''];requestSources=Array.isArray(d.requestSources)&&d.requestSources.length===2?d.requestSources.map(v=>String(v||'')):['',''];battleCount=Number(d.battleCount)||0;streakPlayer=d.streakPlayer===1||d.streakPlayer===2?d.streakPlayer:0;streakCount=Number(d.streakCount)||0;bestStreak=Number(d.bestStreak)||0;battleLog=Array.isArray(d.battleLog)?d.battleLog:[];roundBattleCount=Number(d.roundBattleCount)||0;roundDrops=Array.isArray(d.roundDrops)&&d.roundDrops.length===2?d.roundDrops:[0,0];effectsEnabled=d.effectsEnabled!==false;musicEnabled=d.musicEnabled!==false;countdownReady=!!d.countdownReady;countdownActive=!!d.countdownActive;countdownNumber=Number(d.countdownNumber)||0;pendingSnapshot=d.pendingSnapshot||null;paused=!!d.paused;lastSavedAt=Number(d.savedAt)||0;recoveredGame=true;$('name1').value=typeof d.name1==='string'?d.name1:'RED TEAM';$('name2').value=typeof d.name2==='string'?d.name2:'BLUE TEAM';if(/yellow/i.test($('name2').value))$('name2').value='BLUE TEAM';countdownActive=false; }catch(e){console.warn('Could not restore saved game',e)}finally{restoring=false}}
 function render(){
- const board=$('board'),cols=$('columns');board.innerHTML='';cols.innerHTML='';
- for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-  const cell=document.createElement('div');cell.className='cell';
-  if(grid[r][c]){const piece=document.createElement('div');piece.className='piece '+(grid[r][c]===1?'red':'yellow')+(winner===grid[r][c]&&winner!==0&&winningCells.some(([wr,wc])=>wr===r&&wc===c)?' winning':'');cell.append(piece)}
-  board.append(cell);
+ const board=$('board'),cols=$('columns');
+ // Keep the 42 board cells mounted. Rebuilding the board on every save restarts
+ // the drop animation on every existing piece and makes pieces appear to jump.
+ if(board.children.length!==ROWS*COLS){
+  board.innerHTML='';
+  for(let i=0;i<ROWS*COLS;i++){const cell=document.createElement('div');cell.className='cell';cell.dataset.piece='0';board.append(cell)}
  }
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+  const cell=board.children[r*COLS+c],value=Number(grid[r][c])||0;
+  if(cell.dataset.piece!==String(value)){
+   cell.replaceChildren();cell.dataset.piece=String(value);
+   if(value){const piece=document.createElement('div');piece.className='piece '+(value===1?'red':'yellow');cell.append(piece)}
+  }
+  const piece=cell.firstElementChild;
+  if(piece)piece.classList.toggle('winning',!!(winner===value&&value!==0&&winningCells.some(([wr,wc])=>wr===r&&wc===c)));
+ }
+ cols.innerHTML='';
  board.dataset.previewTeam=String(current);board.onmouseleave=()=>{delete board.dataset.preview};for(let c=0;c<COLS;c++){const b=document.createElement('button');b.className='drop';b.textContent=(c+1)+' ↓';if(dropRequests.includes(c+1))b.classList.add('requested');b.title='Preview column '+(c+1)+' · drop here';b.setAttribute('aria-label','Preview and drop in column '+(c+1));b.disabled=paused||!!winner||!battleWinnerSelected||grid[0][c]!==0;b.addEventListener('mouseenter',()=>{if(!b.disabled)board.dataset.preview=String(c+1)});b.addEventListener('focus',()=>{if(!b.disabled)board.dataset.preview=String(c+1)});b.addEventListener('mouseleave',()=>{if(board.dataset.preview===String(c+1))delete board.dataset.preview});b.addEventListener('blur',()=>{if(board.dataset.preview===String(c+1))delete board.dataset.preview});b.addEventListener('click',()=>play(c));cols.append(b)}
  $('score1').textContent=scores[0];$('score2').textContent=scores[1];
  const redBattleWins=battleLog.filter(entry=>entry.player===1).length,yellowBattleWins=battleLog.filter(entry=>entry.player===2).length;
