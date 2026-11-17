@@ -1128,3 +1128,5 @@ onAuthStateChanged(auth,user=>{signedIn=!!user;if(form){email.hidden=signedIn;pa
 </body></html>
 
 <style>/* No hover/selected column glow: only winning pieces may be highlighted. */#board[data-preview] .cell{box-shadow:inset 0 5px 10px #000b,0 1px 0 #ffffff22!important;filter:none!important}</style>
+
+<style>/* Override every hover-preview selector at equal specificity. */#board[data-preview-team][data-preview] .cell:nth-child(n){box-shadow:inset 0 5px 10px #000b,0 1px 0 #ffffff22!important;filter:none!important}</style>
