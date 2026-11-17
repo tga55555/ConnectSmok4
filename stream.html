@@ -336,7 +336,7 @@ header.logo-header{
 </div><div class="request-display"><div class="request-chip">🔴 RED REQUEST<strong id="redRequestDisplay">No request yet</strong></div><div class="request-chip">🔵 BLUE REQUEST<strong id="yellowRequestDisplay">No request yet</strong></div></div><p class="chat-prompt">💬 ONLY THE REGISTERED OPPONENT CAN REQUEST · HOST VERIFIES USERNAME</p></div></section>
 </div></div>
 <script>
-(()=>{const $=id=>document.getElementById(id),key='battleConnect4Save';let state=null,lastBattleCount=0,lastDropSignature='',popTimer=null,dropTimer=null,victoryDelayUntil=0,victoryRevealTimer=null;try{localStorage.setItem('battleConnect4StreamHeartbeat',String(Date.now()))}catch(e){}setInterval(()=>{try{localStorage.setItem('battleConnect4StreamHeartbeat',String(Date.now()))}catch(e){}},2500);function updateOperatorConnection(){const el=$('operatorConnection');if(!el)return;let beat=0;try{beat=Number(localStorage.getItem('battleConnect4OperatorHeartbeat')||0)}catch(e){}const online=beat>0&&Date.now()-beat<7000;el.className='connection-pill '+(online?'online':'offline');el.textContent=online?'🟢 OPERATOR CONNECTED':'⚠️ OPERATOR DISCONNECTED';}setInterval(updateOperatorConnection,2000);updateOperatorConnection();
+(()=>{const $=id=>document.getElementById(id),key='battleConnect4Save';let state=null,lastBattleCount=0,lastDropSignature='',popTimer=null,dropTimer=null,victoryDelayUntil=0,victoryRevealTimer=null;try{localStorage.setItem('battleConnect4StreamHeartbeat',String(Date.now()))}catch(e){}setInterval(()=>{try{localStorage.setItem('battleConnect4StreamHeartbeat',String(Date.now()))}catch(e){}},2500);function updateOperatorConnection(){const el=$('operatorConnection');if(!el||el.dataset.cloudStatus==='true')return;let beat=0;try{beat=Number(localStorage.getItem('battleConnect4OperatorHeartbeat')||0)}catch(e){}const online=beat>0&&Date.now()-beat<7000;el.className='connection-pill '+(online?'online':'offline');el.textContent=online?'🟢 OPERATOR CONNECTED':'⚠️ OPERATOR DISCONNECTED';}setInterval(updateOperatorConnection,2000);updateOperatorConnection();
 function bindToggle(id,bodyClass,showText,hideText){const btn=$(id);if(!btn)return;btn.addEventListener('click',()=>{const hidden=document.body.classList.toggle(bodyClass);btn.textContent=hidden?showText:hideText;});}
 bindToggle('toggleTicker','hide-ticker','SHOW TICKER','HIDE TICKER');bindToggle('toggleHistory','hide-history','SHOW HISTORY','HIDE HISTORY');bindToggle('toggleInfo','hide-info','SHOW SIDE PANEL','HIDE SIDE PANEL');
 $('fullscreenBtn').addEventListener('click',async()=>{try{if(!document.fullscreenElement){await document.documentElement.requestFullscreen();$('fullscreenBtn').textContent='⤢ EXIT FULL SCREEN'}else{await document.exitFullscreen();$('fullscreenBtn').textContent='⛶ FULL SCREEN'}}catch(e){$('fullscreenBtn').textContent='FULL SCREEN UNAVAILABLE'}});document.addEventListener('fullscreenchange',()=>{$('fullscreenBtn').textContent=document.fullscreenElement?'⤢ EXIT FULL SCREEN':'⛶ FULL SCREEN'});
@@ -371,9 +371,23 @@ const countdown=$('streamCountdown');if(state.countdownActive&&!state.paused&&!w
 const board=$('board');if(board.children.length!==42){board.innerHTML='';for(let i=0;i<42;i++){const cell=document.createElement('div');cell.className='cell';cell.dataset.piece='0';board.append(cell)}}const wins=win===1||win===2?(Array.isArray(state.winningCells)?state.winningCells:[]):[];for(let r=0;r<6;r++)for(let c=0;c<7;c++){const cell=board.children[r*7+c],value=Number(g[r]?.[c])||0;if(cell.dataset.piece!==String(value)){cell.replaceChildren();cell.dataset.piece=String(value);if(value){const piece=document.createElement('div');piece.className='piece '+(value===1?'red':'yellow');cell.append(piece)}}const piece=cell.firstElementChild;if(piece)piece.classList.toggle('winning',!!(win===value&&value&&wins.some(x=>Number(x[0])===r&&Number(x[1])===c)))}
 const req=Array.isArray(state.dropRequests)?state.dropRequests:[0,0],guides=$('columnGuides');guides.innerHTML='';for(let c=1;c<=7;c++){const label=document.createElement('div');label.className='column-guide';label.textContent=c;guides.append(label)}const sources=Array.isArray(state.requestSources)?state.requestSources:['',''];$('redRequestDisplay').textContent=req[0]?'COLUMN '+req[0]+' · '+(sources[0]||'verified opponent'):'No verified request';$('blueRequestDisplay').textContent=req[1]?'COLUMN '+req[1]+' · '+(sources[1]||'verified opponent'):'No verified request';const list=$('history');list.innerHTML='';const log=Array.isArray(state.battleLog)?state.battleLog.slice(-6).reverse():[];if(!log.length){const li=document.createElement('li');li.className='empty';li.textContent='Battle results appear here';list.append(li)}else log.forEach(e=>{const li=document.createElement('li'),n=document.createElement('span'),w=document.createElement('span'),col=document.createElement('span');n.className='num';n.textContent='BATTLE '+e.number;w.className='winner '+(e.player===1?'red-text':'yellow-text');w.textContent=team(e.player)+' WON';col.className='column';col.textContent=e.column?'Column '+e.column:'Drop pending';li.append(n,w,col);list.append(li)});
 $('victory').classList.toggle('show',(win===1||win===2||win===3)&&Date.now()>=victoryDelayUntil);$('victoryName').textContent=win===3?'DRAW':team(win)+' WINS!';const recapWins=[battleRows.filter(e=>e.player===1).length,battleRows.filter(e=>e.player===2).length],stats=[[(state.battleCount||0),'Total battles'],[recapWins[0]+' – '+recapWins[1],'Battle wins · R–Y'],[(state.scores?.[0]||0)+' – '+(state.scores?.[1]||0),'Match score · R–Y'],[(state.roundDrops?.[0]||0)+' – '+(state.roundDrops?.[1]||0),'Final round drops'],[(state.bestStreak||0),'Longest battle streak']];const recap=$('streamVictoryStats');recap.innerHTML='';stats.forEach(([value,label])=>{const card=document.createElement('div'),v=document.createElement('b'),l=document.createElement('span');card.className='stream-victory-stat';v.textContent=value;l.textContent=label;card.append(v,l);recap.append(card)})}
-function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice(-8):[];if(!rows.length)return 'Waiting for the first battle…';return rows.map(e=>'BATTLE '+e.number+': '+teamFrom(d,e.player)+' WON'+(e.column?' · DROP COLUMN '+e.column:' · ONE DROP EARNED')).join('     ✦     ')}function teamFrom(d,p){return String(d['name'+p]||(p===1?'RED TEAM':'BLUE TEAM')).trim()}function showBattlePop(d){const p=d.current===2?2:1,el=$('battlePop');el.className='battle-pop show '+(p===1?'red':'blue');$('battlePopEyebrow').textContent='BATTLE '+(d.battleCount||lastBattleCount)+' RESULT';$('battlePopTitle').textContent=teamFrom(d,p)+' WINS!';$('battlePopSub').textContent=(d.streakCount>=4?'🔥 UNSTOPPABLE!':d.streakCount===3?'🔥 ON FIRE!':d.streakCount===2?'🔥 '+d.streakCount+' BATTLES IN A ROW':'ONE DROP EARNED')+' · NEXT DROP IS READY';if(popTimer)clearTimeout(popTimer);popTimer=setTimeout(()=>{el.className='battle-pop'},2750)}function showDropPop(d){const row=(Array.isArray(d.battleLog)?d.battleLog:[]).slice(-1)[0];const el=$('dropPop');el.textContent='🔵🔴 '+teamFrom(d,d.current===2?2:1)+' DROPPED IN COLUMN '+(row&&row.column?row.column:'—')+' · NEXT BATTLE REQUIRED';el.className='drop-pop show';if(dropTimer)clearTimeout(dropTimer);dropTimer=setTimeout(()=>{el.className='drop-pop'},2550)}function accept(d){
+function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice(-8):[];if(!rows.length)return 'Waiting for the first battle…';return rows.map(e=>'BATTLE '+e.number+': '+teamFrom(d,e.player)+' WON'+(e.column?' · DROP COLUMN '+e.column:' · ONE DROP EARNED')).join('     ✦     ')}function teamFrom(d,p){return String(d['name'+p]||(p===1?'RED TEAM':'BLUE TEAM')).trim()}function showBattlePop(d){const p=d.current===2?2:1,el=$('battlePop');el.className='battle-pop show '+(p===1?'red':'blue');$('battlePopEyebrow').textContent='BATTLE '+(d.battleCount||lastBattleCount)+' RESULT';$('battlePopTitle').textContent=teamFrom(d,p)+' WINS!';$('battlePopSub').textContent=(d.streakCount>=4?'🔥 UNSTOPPABLE!':d.streakCount===3?'🔥 ON FIRE!':d.streakCount===2?'🔥 '+d.streakCount+' BATTLES IN A ROW':'ONE DROP EARNED')+' · NEXT DROP IS READY';if(popTimer)clearTimeout(popTimer);popTimer=setTimeout(()=>{el.className='battle-pop'},2750)}function showDropPop(d){const row=(Array.isArray(d.battleLog)?d.battleLog:[]).slice(-1)[0];const el=$('dropPop');el.textContent='🔵🔴 '+teamFrom(d,d.current===2?2:1)+' DROPPED IN COLUMN '+(row&&row.column?row.column:'—')+' · NEXT BATTLE REQUIRED';el.className='drop-pop show';if(dropTimer)clearTimeout(dropTimer);dropTimer=setTimeout(()=>{el.className='drop-pop'},2550)}let hasCloudBaseline=false;
+function accept(d,source="firebase"){
  if(!d||!Array.isArray(d.grid)||d.grid.length!==6)return;
- 
+ // Ignore same-device BroadcastChannel messages until the first authoritative
+ // Firebase snapshot has established the current board. This avoids treating
+ // an old localStorage board as the live baseline and missing the next drop.
+ if(source==="broadcast"&&!hasCloudBaseline)return;
+ if(!hasCloudBaseline){
+  hasCloudBaseline=true;
+  state=d;
+  const first=d.lastPiece;
+  lastDropSignature=first&&[1,2].includes(Number(first.p))
+   ?String(first.at||[first.r,first.c,first.p].join(":")):"";
+  lastBattleCount=Number(d.battleCount)||0;
+  render();
+  return;
+ }
  const previousWin=Number(state?.winner)||0,incomingWin=Number(d.winner)||0;
  if(incomingWin&&!previousWin){
   victoryDelayUntil=Date.now()+4400;
@@ -415,15 +429,14 @@ function activityText(d){const rows=Array.isArray(d.battleLog)?d.battleLog.slice
  }
 }
 
-window.addEventListener('connectsmok4-firebase-state',e=>accept(e.detail));
-read();
-if(state?.lastPiece)lastDropSignature=String(state.lastPiece.at||[state.lastPiece.r,state.lastPiece.c,state.lastPiece.p].join(':'));
-lastBattleCount=Number(state?.battleCount)||0;
+window.addEventListener('connectsmok4-firebase-state',e=>accept(e.detail,"firebase"));
+// Do not seed Stream from shared localStorage: it may already contain the
+// Host's latest drop, which would make that drop look old and suppress smoke.
 render();
 try{
  if('BroadcastChannel'in window){
   const ch=new BroadcastChannel('battle-connect4-sync');
-  ch.onmessage=e=>accept(e.data);
+  ch.onmessage=e=>accept(e.data,"broadcast");
  }
 }catch(e){}
 // Firebase and BroadcastChannel are the live sources; do not poll stale local saves.
@@ -439,7 +452,7 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
 let stopGameListener=null,stopConnectionListener=null,streamUserReady=false;
 const cloudStatus=document.getElementById("operatorConnection");
 function setCloudStatus(kind,message){
- if(cloudStatus){cloudStatus.className="connection-pill "+kind;cloudStatus.textContent=message;}
+ if(cloudStatus){cloudStatus.dataset.cloudStatus="true";cloudStatus.className="connection-pill "+kind;cloudStatus.textContent=message;}
 }
 function stopStreamListeners(){
  if(stopGameListener){stopGameListener();stopGameListener=null;}
@@ -608,12 +621,12 @@ onAuthStateChanged(auth,user=>{
   // Consecutive wins by the same player build a bigger, denser smoke plume.
   const streak=Math.max(1,Math.min(4,Number(detail.streak)||1));
   const intensity=1+(streak-1)*.5;
-  const particleCount=Math.round(34+(streak-1)*24);
+  const particleCount=Math.round(58+(streak-1)*28);
   for(let i=0;i<particleCount;i++){
    const angle=(-Math.PI/2)+(Math.random()-.5)*(1.65+streak*.08),speed=(24+Math.random()*75)*Math.sqrt(intensity);
    particles.push({x:x+(Math.random()-.5)*rect.width*.35,y:y+(Math.random()-.5)*rect.height*.2,
     vx:Math.cos(angle)*speed+(Math.random()-.5)*24*intensity,vy:Math.sin(angle)*speed-18*intensity,
-    size:(10+Math.random()*21)*Math.sqrt(intensity),age:0,life:(1.5+Math.random()*1.35)*(1+(streak-1)*.12),
+    size:(16+Math.random()*27)*Math.sqrt(intensity),age:0,life:(2.1+Math.random()*1.65)*(1+(streak-1)*.12),
     sway:(12+Math.random()*34)*intensity,phase:Math.random()*6.28,rot:(Math.random()-.5)*.8,color});
   }
   if(!raf){last=0;raf=requestAnimationFrame(draw)}
@@ -630,9 +643,9 @@ onAuthStateChanged(auth,user=>{
    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot+Math.sin(p.phase+p.age*3)*.25);
    ctx.filter='blur('+(7+q*10)+'px)';
    const g=ctx.createRadialGradient(-r*.2,-r*.2,1,0,0,r);
-   g.addColorStop(0,'rgba('+cr+','+cg+','+cb+','+(fade*.48)+')');
-   g.addColorStop(.35,'rgba('+cr+','+cg+','+cb+','+(fade*.32)+')');
-   g.addColorStop(.72,'rgba(155,165,190,'+(fade*.18)+')');
+   g.addColorStop(0,'rgba('+cr+','+cg+','+cb+','+(fade*.78)+')');
+   g.addColorStop(.35,'rgba('+cr+','+cg+','+cb+','+(fade*.55)+')');
+   g.addColorStop(.72,'rgba(155,165,190,'+(fade*.3)+')');
    g.addColorStop(1,'rgba(155,165,190,0)');
    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,r*.8,r*1.18,0,0,Math.PI*2);ctx.fill();ctx.restore();
   }
