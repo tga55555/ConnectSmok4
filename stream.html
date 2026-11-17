@@ -454,6 +454,7 @@ setPersistence(auth,browserLocalPersistence).catch(error=>console.warn("Stream a
 // signed-in session as soon as Auth restores it; this avoids a missed startup window.
 startStreamListener();
 onAuthStateChanged(auth,user=>{
+ if(user)startStreamListener();
  const el=document.getElementById("operatorConnection");
  if(el&&user){el.className="connection-pill online";el.textContent="🟢 LIVE CLOUD LISTENER CONNECTED";}
 });
