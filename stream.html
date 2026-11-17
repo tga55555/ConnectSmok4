@@ -436,27 +436,44 @@ import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence } 
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyBYZcY8pCrLcuk1D6xHF--IQXEOHcmEnq8",authDomain:"connectsmok4.firebaseapp.com",databaseURL:"https://connectsmok4-default-rtdb.firebaseio.com",projectId:"connectsmok4",storageBucket:"connectsmok4.firebasestorage.app",messagingSenderId:"558296183849",appId:"1:558296183849:web:eb8e3a1dd6a2eba5221838"};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
-let stopGameListener=null;
+let stopGameListener=null,stopConnectionListener=null,streamUserReady=false;
+const cloudStatus=document.getElementById("operatorConnection");
+function setCloudStatus(kind,message){
+ if(cloudStatus){cloudStatus.className="connection-pill "+kind;cloudStatus.textContent=message;}
+}
+function stopStreamListeners(){
+ if(stopGameListener){stopGameListener();stopGameListener=null;}
+ if(stopConnectionListener){stopConnectionListener();stopConnectionListener=null;}
+}
 function startStreamListener(){
- if(stopGameListener)return;
+ if(stopGameListener||!streamUserReady)return;
+ setCloudStatus("online","🟢 SIGNED IN · CONNECTING TO LIVE GAME");
  stopGameListener=onValue(ref(db,"game"),snapshot=>{
   const data=snapshot.val();
-  if(data&&Array.isArray(data.grid))window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));
+  if(data&&Array.isArray(data.grid)){
+   window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));
+   setCloudStatus("online","🟢 LIVE STREAM · GAME UPDATES RECEIVING");
+  }else setCloudStatus("online","🟡 LIVE CLOUD CONNECTED · WAITING FOR HOST");
  },error=>{
   console.error("ConnectSmok4 Stream cloud sync error:",error);
-  const el=document.getElementById("operatorConnection");
-  if(el){el.className="connection-pill offline";el.textContent="⚠️ STREAM CLOUD ACCESS ERROR";}
   stopGameListener=null;
+  setCloudStatus("offline","⚠️ STREAM DATABASE ERROR · CHECK FIREBASE RULES");
+ });
+ stopConnectionListener=onValue(ref(db,".info/connected"),snapshot=>{
+  if(snapshot.val()===false)setCloudStatus("offline","⚠️ STREAM RECONNECTING TO CLOUD");
  });
 }
 setPersistence(auth,browserLocalPersistence).catch(error=>console.warn("Stream auth persistence:",error));
-// Attach the live database listener immediately. Firebase applies the available
-// signed-in session as soon as Auth restores it; this avoids a missed startup window.
-startStreamListener();
+// Wait for Firebase Auth to finish restoring the saved session. Starting the
+// protected database listener before this point can cause a permission error
+// that leaves the Stream disconnected until a manual refresh.
 onAuthStateChanged(auth,user=>{
- if(user)startStreamListener();
- const el=document.getElementById("operatorConnection");
- if(el&&user){el.className="connection-pill online";el.textContent="🟢 LIVE CLOUD LISTENER CONNECTED";}
+ streamUserReady=!!user;
+ if(user){startStreamListener();}
+ else{
+  stopStreamListeners();
+  setCloudStatus("offline","⚠️ STREAM SIGN-IN NOT RESTORED · OPEN HOST AND SIGN IN");
+ }
 });
 </script><script>
 (()=> {
@@ -576,7 +593,7 @@ onAuthStateChanged(auth,user=>{
 (()=> {
  const canvas=document.createElement('canvas');
  canvas.id='dropSmokeCanvas';
- Object.assign(canvas.style,{position:'fixed',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'9999'});
+ Object.assign(canvas.style,{position:'fixed',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'2147483000'});
  canvas.setAttribute('aria-hidden','true');document.body.append(canvas);
  const ctx=canvas.getContext('2d');if(!ctx)return;
  let w=0,h=0,dpr=1,particles=[],raf=0,last=0;
@@ -613,9 +630,9 @@ onAuthStateChanged(auth,user=>{
    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot+Math.sin(p.phase+p.age*3)*.25);
    ctx.filter='blur('+(7+q*10)+'px)';
    const g=ctx.createRadialGradient(-r*.2,-r*.2,1,0,0,r);
-   g.addColorStop(0,'rgba('+cr+','+cg+','+cb+','+(fade*.22)+')');
-   g.addColorStop(.35,'rgba('+cr+','+cg+','+cb+','+(fade*.15)+')');
-   g.addColorStop(.72,'rgba(155,165,190,'+(fade*.09)+')');
+   g.addColorStop(0,'rgba('+cr+','+cg+','+cb+','+(fade*.48)+')');
+   g.addColorStop(.35,'rgba('+cr+','+cg+','+cb+','+(fade*.32)+')');
+   g.addColorStop(.72,'rgba(155,165,190,'+(fade*.18)+')');
    g.addColorStop(1,'rgba(155,165,190,0)');
    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,r*.8,r*1.18,0,0,Math.PI*2);ctx.fill();ctx.restore();
   }
