@@ -556,12 +556,12 @@ onAuthStateChanged(auth,user=>{
   // Consecutive wins by the same player build a bigger, denser smoke plume.
   const streak=Math.max(1,Math.min(4,Number(detail.streak)||1));
   const intensity=1+(streak-1)*.5;
-  const particleCount=Math.round(58+(streak-1)*28);
+  const particleCount=Math.round(34+(streak-1)*24);
   for(let i=0;i<particleCount;i++){
    const angle=(-Math.PI/2)+(Math.random()-.5)*(1.65+streak*.08),speed=(24+Math.random()*75)*Math.sqrt(intensity);
    particles.push({x:x+(Math.random()-.5)*rect.width*.35,y:y+(Math.random()-.5)*rect.height*.2,
     vx:Math.cos(angle)*speed+(Math.random()-.5)*24*intensity,vy:Math.sin(angle)*speed-18*intensity,
-    size:(16+Math.random()*27)*Math.sqrt(intensity),age:0,life:(2.1+Math.random()*1.65)*(1+(streak-1)*.12),
+    size:(10+Math.random()*21)*Math.sqrt(intensity),age:0,life:(1.5+Math.random()*1.35)*(1+(streak-1)*.12),
     sway:(12+Math.random()*34)*intensity,phase:Math.random()*6.28,rot:(Math.random()-.5)*.8,color});
   }
   if(!raf){last=0;raf=requestAnimationFrame(draw)}
@@ -578,9 +578,9 @@ onAuthStateChanged(auth,user=>{
    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot+Math.sin(p.phase+p.age*3)*.25);
    ctx.filter='blur('+(7+q*10)+'px)';
    const g=ctx.createRadialGradient(-r*.2,-r*.2,1,0,0,r);
-   g.addColorStop(0,'rgba('+cr+','+cg+','+cb+','+(fade*.78)+')');
-   g.addColorStop(.35,'rgba('+cr+','+cg+','+cb+','+(fade*.55)+')');
-   g.addColorStop(.72,'rgba(155,165,190,'+(fade*.3)+')');
+   g.addColorStop(0,'rgba('+cr+','+cg+','+cb+','+(fade*.22)+')');
+   g.addColorStop(.35,'rgba('+cr+','+cg+','+cb+','+(fade*.15)+')');
+   g.addColorStop(.72,'rgba(155,165,190,'+(fade*.09)+')');
    g.addColorStop(1,'rgba(155,165,190,0)');
    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,r*.8,r*1.18,0,0,Math.PI*2);ctx.fill();ctx.restore();
   }
@@ -647,17 +647,17 @@ body{
   }
   previous=data.grid.map(row=>row.slice());
   if(drop){
-   requestAnimationFrame(()=>{const cell=board.children[drop.r*7+drop.c];if(!cell)return;const b=cell.getBoundingClientRect(),plume=document.createElement('div');plume.className='drop-smoke-plume';plume.style.left=(b.left+b.width/2)+'px';plume.style.top=(b.top+b.height/2)+'px';plume.style.setProperty('--plume-tint',drop.p===1?'rgba(255,65,107,.8)':'rgba(70,157,255,.8)');document.documentElement.append(plume);setTimeout(()=>plume.remove(),3200);});
+   requestAnimationFrame(()=>{const cell=board.children[drop.r*7+drop.c];if(!cell)return;const b=cell.getBoundingClientRect(),plume=document.createElement('div');plume.className='drop-smoke-plume';plume.style.left=(b.left+b.width/2)+'px';plume.style.top=(b.top+b.height/2)+'px';plume.style.setProperty('--plume-tint',drop.p===1?'rgba(255,65,107,.8)':'rgba(70,157,255,.8)');plume.style.setProperty('--plume-scale',String(Math.sqrt(intensity)));plume.style.setProperty('--plume-duration',(1.5+1.35*(1+(streak-1)*.12))+'s');document.documentElement.append(plume);setTimeout(()=>plume.remove(),Math.ceil((1.5+1.35*(1+(streak-1)*.12))*1000)+150);});
   }
  }
  window.addEventListener('connectsmok4-firebase-state',e=>paint(e.detail));
 })();
 </script>
 <style>
-.drop-smoke-plume{position:fixed;z-index:2147483647;pointer-events:none;width:116px;height:132px;transform:translate(-50%,-72%);border-radius:50%;background:radial-gradient(ellipse at 50% 78%,var(--plume-tint) 0%,rgba(105,112,132,.72) 24%,rgba(72,80,101,.48) 48%,transparent 76%),radial-gradient(ellipse at 32% 42%,rgba(174,184,205,.62),transparent 66%);filter:blur(7px);mix-blend-mode:screen;opacity:0;animation:dropSmokeRise 3.1s ease-out forwards}
+.drop-smoke-plume{position:fixed;z-index:2147483647;pointer-events:none;width:116px;height:132px;transform:translate(-50%,-72%);border-radius:50%;background:radial-gradient(ellipse at 50% 78%,var(--plume-tint) 0%,rgba(105,112,132,.72) 24%,rgba(72,80,101,.48) 48%,transparent 76%),radial-gradient(ellipse at 32% 42%,rgba(174,184,205,.62),transparent 66%);filter:blur(7px);mix-blend-mode:screen;opacity:0;animation:dropSmokeRise var(--plume-duration,2.85s) ease-out forwards}
 .drop-smoke-plume:before,.drop-smoke-plume:after{content:"";position:absolute;inset:8% 15% 0;border-radius:48%;background:radial-gradient(ellipse at 45% 55%,rgba(178,187,207,.7),rgba(105,115,140,.38) 42%,transparent 75%);filter:blur(10px);animation:dropSmokeSwirl 1.35s ease-in-out infinite alternate}
 .drop-smoke-plume:after{inset:0 30% 20%;background:radial-gradient(ellipse,rgba(125,137,162,.58),rgba(85,96,123,.24) 48%,transparent 76%);animation-delay:-.65s}
-@keyframes dropSmokeRise{0%{opacity:0;transform:translate(-50%,-48%) scale(.38)}10%{opacity:1}34%{opacity:.88}100%{opacity:0;transform:translate(-50%,-205%) scale(2.25)}}
+@keyframes dropSmokeRise{0%{opacity:0;transform:translate(-50%,-48%) scale(calc(.38 * var(--plume-scale,1)))}10%{opacity:1}34%{opacity:.88}100%{opacity:0;transform:translate(-50%,-205%) scale(calc(2.25 * var(--plume-scale,1)))}}
 @keyframes dropSmokeSwirl{from{translate:-13px 8px;scale:.72}to{translate:16px -19px;scale:1.32}}
 </style>
 
