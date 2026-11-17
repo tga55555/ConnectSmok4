@@ -629,5 +629,37 @@ body{
 .stream-cloud-login button:disabled{opacity:.6}
 .stream-cloud-login span{color:#b8c6e5;font-size:11px}
 </style>
+
+<script>
+(()=> {
+ let previous=null;
+ function paint(data){
+  if(!data||!Array.isArray(data.grid)||data.grid.length!==6)return;
+  const board=document.getElementById('board');if(!board)return;
+  if(board.children.length!==42){board.innerHTML='';for(let i=0;i<42;i++){const cell=document.createElement('div');cell.className='cell';cell.dataset.piece='0';board.append(cell)}}
+  let drop=null;
+  if(previous){for(let r=0;r<6;r++)for(let col=0;col<7;col++){const before=Number(previous[r]?.[col])||0,after=Number(data.grid[r]?.[col])||0;if(!before&&after)drop={r,c:col,p:after};}}
+  const win=Number(data.winner)||0,wins=win===1||win===2?(data.winningCells||[]):[];
+  for(let r=0;r<6;r++)for(let col=0;col<7;col++){
+   const cell=board.children[r*7+col],v=Number(data.grid[r]?.[col])||0;
+   if(cell.dataset.piece!==String(v)){cell.replaceChildren();cell.dataset.piece=String(v);if(v){const piece=document.createElement('div');piece.className='piece '+(v===1?'red':'yellow');cell.append(piece)}}
+   const piece=cell.firstElementChild;if(piece)piece.classList.toggle('winning',!!(win===v&&v&&wins.some(x=>Number(x[0])===r&&Number(x[1])===col)));
+  }
+  previous=data.grid.map(row=>row.slice());
+  if(drop){
+   requestAnimationFrame(()=>{const cell=board.children[drop.r*7+drop.c];if(!cell)return;const b=cell.getBoundingClientRect(),plume=document.createElement('div');plume.className='drop-smoke-plume';plume.style.left=(b.left+b.width/2)+'px';plume.style.top=(b.top+b.height/2)+'px';plume.style.setProperty('--plume-tint',drop.p===1?'rgba(255,65,107,.8)':'rgba(70,157,255,.8)');document.body.append(plume);setTimeout(()=>plume.remove(),2700);});
+  }
+ }
+ window.addEventListener('connectsmok4-firebase-state',e=>paint(e.detail));
+})();
+</script>
+<style>
+.drop-smoke-plume{position:fixed;z-index:2147483001;pointer-events:none;width:82px;height:92px;transform:translate(-50%,-75%);border-radius:50%;background:radial-gradient(ellipse at 50% 78%,var(--plume-tint) 0%,rgba(120,130,155,.42) 30%,transparent 72%),radial-gradient(ellipse at 35% 45%,rgba(150,160,185,.42),transparent 68%);filter:blur(9px);mix-blend-mode:screen;animation:dropSmokeRise 2.6s ease-out forwards}
+.drop-smoke-plume:before,.drop-smoke-plume:after{content:"";position:absolute;inset:12% 18% 0;border-radius:50%;background:radial-gradient(ellipse,rgba(145,155,180,.44),rgba(110,120,150,.12) 52%,transparent 74%);filter:blur(12px);animation:dropSmokeSwirl 1.7s ease-in-out infinite alternate}
+.drop-smoke-plume:after{inset:0 35% 22%;animation-delay:-.7s}
+@keyframes dropSmokeRise{0%{opacity:0;transform:translate(-50%,-55%) scale(.45)}12%{opacity:.95}100%{opacity:0;transform:translate(-50%,-190%) scale(2.1)}}
+@keyframes dropSmokeSwirl{from{translate:-10px 5px;scale:.8}to{translate:13px -15px;scale:1.25}}
+</style>
+
 </body></html>
 <style>/* Stream never previews or highlights a selected column. Winning four only. */.column-guide.requested{background:#172344!important;border:1px solid #6079ad!important;box-shadow:none!important;animation:none!important}#board .cell{outline:none!important;filter:none!important}</style>
