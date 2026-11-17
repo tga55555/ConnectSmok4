@@ -324,7 +324,7 @@ header.logo-header{
 /* Match PLAYER 1 / PLAYER 2 label text to the host page. */
 #player1 small,#player2 small{color:#c5cde4!important;}
 </style></head>
-<body><div class="smoke-fx" aria-hidden="true"><canvas id="smokeCanvas"></canvas></div><div class="shell">
+<body><div class="shell">
 <header class="logo-header"><img class="site-logo" src="smoke-after-dark-header.jpeg" alt="Smoke After Dark Connect Smoke logo"></header>
 <div class="stream-toolbar" aria-label="Stream display controls"><span class="connection-pill offline" id="operatorConnection">⚠️ OPERATOR NOT CONNECTED</span><button type="button" id="fullscreenBtn">⛶ FULL SCREEN</button><button type="button" id="toggleTicker">HIDE TICKER</button><button type="button" id="toggleHistory">HIDE HISTORY</button><button type="button" id="toggleInfo">HIDE SIDE PANEL</button></div>
 <div class="activity-ticker" aria-live="polite"><span class="ticker-label">LIVE ACTIVITY</span><div class="ticker-window"><div id="activityTicker" class="ticker-track">Waiting for the first battle…</div></div></div>
@@ -465,12 +465,12 @@ function startStreamListener(){
   const data=snapshot.val();
   if(data&&Array.isArray(data.grid)){
    window.dispatchEvent(new CustomEvent("connectsmok4-firebase-state",{detail:data}));
-   setCloudStatus("online","🟢 LIVE STREAM · GAME UPDATES RECEIVING");
-  }else setCloudStatus("online","🟡 LIVE CLOUD CONNECTED · WAITING FOR HOST");
+   const pieces=data.grid.flat().filter(v=>Number(v)===1||Number(v)===2).length;const stamp=data.savedAt?new Date(data.savedAt).toLocaleTimeString():"snapshot received";setCloudStatus("online","🟢 LIVE · "+stamp+" · "+pieces+" PIECES");
+  }else setCloudStatus("online","🟡 CLOUD CONNECTED · WAITING FOR HOST GAME");
  },error=>{
   console.error("ConnectSmok4 Stream cloud sync error:",error);
   stopGameListener=null;
-  setCloudStatus("offline","⚠️ STREAM DATABASE ERROR · CHECK FIREBASE RULES");
+  setCloudStatus("offline","⚠️ STREAM DATABASE ERROR · "+error.message);
  });
  stopConnectionListener=onValue(ref(db,".info/connected"),snapshot=>{
   if(snapshot.val()===false)setCloudStatus("offline","⚠️ STREAM RECONNECTING TO CLOUD");
@@ -488,117 +488,6 @@ onAuthStateChanged(auth,user=>{
   setCloudStatus("offline","⚠️ STREAM SIGN-IN NOT RESTORED · OPEN HOST AND SIGN IN");
  }
 });
-</script><script>
-(()=> {
- const canvas=document.getElementById('smokeCanvas');
- if(!canvas)return;
- const ctx=canvas.getContext('2d',{alpha:true});
- if(!ctx)return;
- let w=0,h=0,dpr=1,last=0,clock=0,smoke=[];
- const tones=[[126,42,190],[174,38,139],[70,83,190],[135,48,175],[187,62,145],[83,105,205]];
- let seed=9381;
- const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
- const fog=[
-  {x:0,y:.34,speed:15,phase:0,color:[113,39,174],alpha:.23,scale:1.0},
-  {x:.5,y:.68,speed:-11,phase:2.1,color:[176,42,132],alpha:.21,scale:1.25},
-  {x:1,y:.48,speed:19,phase:4.2,color:[58,82,174],alpha:.2,scale:1.1},
-  {x:.2,y:.88,speed:-17,phase:1.3,color:[139,43,165],alpha:.2,scale:1.35}
- ];
- function spawn(initial=false){
-  const edge=rand();
-  const x=edge<.22?w*(.02+rand()*.24):edge<.44?w*(.74+rand()*.24):w*(.08+rand()*.84);
-  const life=9+rand()*8, scale=.75+rand()*.9;
-  return {x,y:initial?h*(.05+rand()*1.1):h+80+rand()*100,age:initial?rand()*life:0,life,
-   size:(85+rand()*115)*Math.min(1.2,w/390)*scale,
-   vx:(rand()-.5)*24,vy:-(19+rand()*27),phase:rand()*6.28,
-   sway:18+rand()*55,turn:(rand()-.5)*.7,tone:tones[Math.floor(rand()*tones.length)],
-   alpha:.19+rand()*.13,seed:rand()*1000};
- }
- function resize(){
-  dpr=Math.min(window.devicePixelRatio||1,1.5);w=innerWidth;h=innerHeight;
-  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);smoke=[];
-  for(let i=0;i<48;i++)smoke.push(spawn(true));
- }
- function puff(x,y,rx,ry,color,alpha,rot){
-  ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.scale(1,ry/rx);
-  const g=ctx.createRadialGradient(-rx*.16,-rx*.12,rx*.025,0,0,rx);
-  g.addColorStop(0,'rgba('+color.join(',')+','+(alpha*.95)+')');
-  g.addColorStop(.2,'rgba('+color.join(',')+','+(alpha*.76)+')');
-  g.addColorStop(.46,'rgba('+color.join(',')+','+(alpha*.4)+')');
-  g.addColorStop(.76,'rgba('+color.join(',')+','+(alpha*.13)+')');
-  g.addColorStop(1,'rgba('+color.join(',')+',0)');
-  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,rx,0,Math.PI*2);ctx.fill();ctx.restore();
- }
- function renderFog(){
-  // Broad translucent sheets drift sideways behind the finer rising smoke.
-  ctx.filter='blur(34px)';
-  for(let i=0;i<fog.length;i++){
-   const f=fog[i], drift=Math.sin(clock*.18+f.phase)*w*.12;
-   const x=((f.x*w+clock*f.speed+drift)%(w*1.8)+w*1.8)%(w*1.8)-w*.4;
-   const y=h*f.y+Math.sin(clock*.24+f.phase)*h*.055;
-   const r=w*.78*f.scale;
-   puff(x,y,r,r*.36,f.color,f.alpha,Math.sin(clock*.13+f.phase)*.12);
-   puff(x+r*.48,y-h*.07,r*.64,r*.3,f.color,f.alpha*.72,-.14);
-   puff(x-r*.48,y+h*.06,r*.62,r*.32,f.color,f.alpha*.7,.13);
-  }
-  ctx.filter='none';
- }
- function render(p){
-  const q=p.age/p.life;
-  const fade=Math.min(1,p.age/1.0,Math.max(0,(1-q)*2.8));
-  const turbulence=Math.sin(clock*.42+p.phase+p.age*.48);
-  const x=p.x+Math.sin(clock*.34+p.phase)*p.sway+turbulence*16,y=p.y;
-  const grow=.5+q*1.28,r=p.size*grow,a=p.alpha*fade,col=p.tone;
-  ctx.filter='blur(19px)';
-  puff(x,y,r*1.3,r*.95,col,a*.8,p.turn);
-  puff(x-r*.52,y-r*.14,r*.86,r*.76,col,a*.86,p.turn-.38);
-  puff(x+r*.48,y-r*.22,r*.94,r*.8,col,a*.82,p.turn+.32);
-  puff(x-r*.18,y-r*.62,r*.74,r*.9,col,a*.7,p.turn-.18);
-  puff(x+r*.32,y-r*.7,r*.68,r*.92,col,a*.66,p.turn+.24);
-  puff(x+r*.03,y+r*.36,r,r*.7,col,a*.54,p.turn+.1);
-  ctx.filter='blur(8px)';
-  for(let k=0;k<5;k++){
-   const ang=Math.PI*2*k/5+p.phase;
-   const ox=Math.cos(ang)*r*(.52+.08*Math.sin(clock*.8+k+p.seed));
-   const oy=Math.sin(ang)*r*.48;
-   puff(x+ox,y+oy,r*(.3+.08*Math.sin(k*2+p.seed)),r*(.36+.07*Math.cos(k+p.seed)),col,a*.42,p.turn+ang*.2);
-  }
-  ctx.filter='blur(3.5px)';
-  for(let k=0;k<3;k++){
-   const side=k-1,sx=x+side*r*.28,sy=y-r*.5;
-   const curl=Math.sin(clock*.75+p.phase+k*1.7)*r*.42,rise=r*(1.3+k*.25);
-   const grad=ctx.createLinearGradient(sx,sy,sx+curl,sy-rise);
-   grad.addColorStop(0,'rgba('+col.join(',')+','+(a*.65)+')');
-   grad.addColorStop(.38,'rgba('+col.join(',')+','+(a*.28)+')');
-   grad.addColorStop(1,'rgba('+col.join(',')+',0)');
-   ctx.strokeStyle=grad;ctx.lineWidth=4+k*2.5;ctx.lineCap='round';
-   ctx.beginPath();ctx.moveTo(sx,sy);
-   ctx.bezierCurveTo(sx-side*r*.65,sy-rise*.32,sx+curl+side*r*.45,sy-rise*.72,sx+curl,sy-rise);
-   ctx.stroke();
-  }
-  ctx.filter='none';
- }
- function draw(t){
-  if(t-last<28){requestAnimationFrame(draw);return}
-  const dt=Math.min((t-last)/1000,.045);last=t;clock+=dt;
-  ctx.clearRect(0,0,w,h);ctx.globalCompositeOperation='source-over';
-  renderFog();
-  for(let i=smoke.length-1;i>=0;i--){
-   const p=smoke[i];p.age+=dt;
-   p.x+=(p.vx+Math.sin(clock*.32+p.phase)*7)*dt;p.y+=p.vy*dt;
-   p.vx+=Math.sin(clock*.23+p.phase)*.55*dt;
-   if(p.age>=p.life||p.y < -p.size*5){smoke.splice(i,1);continue}
-   render(p);
-  }
-  while(smoke.length<48)smoke.push(spawn(false));
-  ctx.globalCompositeOperation='source-over';ctx.filter='none';
-  requestAnimationFrame(draw);
- }
- resize();window.addEventListener('resize',resize,{passive:true});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)last=0});
- requestAnimationFrame(draw);
-})();
 </script>
 
 
