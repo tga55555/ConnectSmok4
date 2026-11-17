@@ -898,7 +898,7 @@ function getLine(r,c,p,dr,dc){let line=[[r,c]];for(const sign of [-1,1]){let rr=
 function play(c){
  if(paused||winner||!battleWinnerSelected)return;if(grid[0][c]!==0){alert('Column '+(c+1)+' is full. Choose another column.');return}if(!confirm(name(current)+' earned one drop. Confirm dropping in column '+(c+1)+'?'))return;
  let r=ROWS-1;while(r>=0&&grid[r][c]!==0)r--;if(r<0)return;
- history.push({r,c,p:current,battleReady,battleWinnerSelected,countdownReady,dropRequests:[...dropRequests],streakPlayer:pendingSnapshot?.streakPlayer??streakPlayer,streakCount:pendingSnapshot?.streakCount??streakCount,bestStreak:pendingSnapshot?.bestStreak??bestStreak,battleCount:pendingSnapshot?.battleCount??battleCount,battleLogLength:pendingSnapshot?.battleLogLength??battleLog.length,roundBattleCount:pendingSnapshot?.roundBattleCount??roundBattleCount,roundDrops:pendingSnapshot?.roundDrops?[...pendingSnapshot.roundDrops]:[...roundDrops]});if(battleLog.length)battleLog[battleLog.length-1].column=c+1;grid[r][c]=current;roundDrops[current-1]++;dropRequests[current-1]=0;battleReady=false;battleWinnerSelected=false;countdownReady=false;pendingSnapshot=null;lastPiece={r,c};window.dispatchEvent(new CustomEvent('connectsmok4-piece-dropped',{detail:{r,c,p:current}}));playTone(390,.11,'sine');
+ history.push({r,c,p:current,battleReady,battleWinnerSelected,countdownReady,dropRequests:[...dropRequests],streakPlayer:pendingSnapshot?.streakPlayer??streakPlayer,streakCount:pendingSnapshot?.streakCount??streakCount,bestStreak:pendingSnapshot?.bestStreak??bestStreak,battleCount:pendingSnapshot?.battleCount??battleCount,battleLogLength:pendingSnapshot?.battleLogLength??battleLog.length,roundBattleCount:pendingSnapshot?.roundBattleCount??roundBattleCount,roundDrops:pendingSnapshot?.roundDrops?[...pendingSnapshot.roundDrops]:[...roundDrops]});if(battleLog.length)battleLog[battleLog.length-1].column=c+1;grid[r][c]=current;roundDrops[current-1]++;dropRequests[current-1]=0;battleReady=false;battleWinnerSelected=false;countdownReady=false;pendingSnapshot=null;lastPiece={r,c};window.dispatchEvent(new CustomEvent('connectsmok4-piece-dropped',{detail:{r,c,p:current,streak:streakPlayer===current?Math.max(1,streakCount):1}}));playTone(390,.11,'sine');
  let lines=[[0,1],[1,0],[1,1],[1,-1]].map(([dr,dc])=>getLine(r,c,current,dr,dc));
  let line=lines.find(x=>x.length>=4);
  if(line){winner=current;winningCells=line;scores[current-1]++;roundStarter=current;setTimeout(()=>celebrate(current),220)}
@@ -1088,12 +1088,16 @@ onAuthStateChanged(auth,user=>{signedIn=!!user;if(form){email.hidden=signedIn;pa
   if(!cell)return;
   const rect=cell.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
   const color=detail.p===1?[255,65,107]:[70,157,255];
-  for(let i=0;i<34;i++){
-   const angle=(-Math.PI/2)+(Math.random()-.5)*1.65,speed=24+Math.random()*75;
+  // Consecutive wins by the same player build a bigger, denser smoke plume.
+  const streak=Math.max(1,Math.min(6,Number(detail.streak)||1));
+  const intensity=1+(streak-1)*.38;
+  const particleCount=Math.round(34+(streak-1)*17);
+  for(let i=0;i<particleCount;i++){
+   const angle=(-Math.PI/2)+(Math.random()-.5)*(1.65+streak*.08),speed=(24+Math.random()*75)*Math.sqrt(intensity);
    particles.push({x:x+(Math.random()-.5)*rect.width*.35,y:y+(Math.random()-.5)*rect.height*.2,
-    vx:Math.cos(angle)*speed+(Math.random()-.5)*24,vy:Math.sin(angle)*speed-18,
-    size:10+Math.random()*21,age:0,life:1.5+Math.random()*1.35,
-    sway:12+Math.random()*34,phase:Math.random()*6.28,rot:(Math.random()-.5)*.8,color});
+    vx:Math.cos(angle)*speed+(Math.random()-.5)*24*intensity,vy:Math.sin(angle)*speed-18*intensity,
+    size:(10+Math.random()*21)*Math.sqrt(intensity),age:0,life:(1.5+Math.random()*1.35)*(1+(streak-1)*.12),
+    sway:(12+Math.random()*34)*intensity,phase:Math.random()*6.28,rot:(Math.random()-.5)*.8,color});
   }
   if(!raf){last=0;raf=requestAnimationFrame(draw)}
  }
